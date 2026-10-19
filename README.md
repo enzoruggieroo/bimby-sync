@@ -5,8 +5,8 @@ Trasforma le ricette della **Mia settimana** di Cookidoo in una **lista della sp
 **Cosa fa:**
 1. Prende **tutte le ricette pianificate da oggi in avanti**, anche nelle settimane successive.
 2. Le mette nella lista della spesa di Cookidoo (non devi più premere "Aggiungi alla lista della spesa") e toglie quelle non più pianificate.
-3. **Somma gli ingredienti** per nome e unità di misura (una ricetta pianificata due volte conta due volte) e scrive `spesa.txt`, una riga per prodotto, ad esempio `Pasta – 1,04 kg`.
-4. Il Comando Rapido **"Spesa Bimby"** sull'iPhone porta quella lista nell'elenco **Spesa** di Promemoria.
+3. Cookidoo **somma gli ingredienti**; lo script scrive anche una sua versione sommata in `spesa.txt` (una ricetta pianificata due volte conta due volte).
+4. Il Comando Rapido **"Spesa Bimby"** esporta la lista dall'app Bimby e la porta nell'elenco **Spesa** di Promemoria.
 
 Gira su GitHub Actions **ogni ora** (circa dalle 7 alle 23) e quando premi il pulsante sull'iPhone.
 
@@ -29,63 +29,44 @@ I Secrets sono cifrati: non compaiono nel codice né nei log.
 
 Apri l'esecuzione: il log mostra le ricette pianificate, cosa aggiungerebbe o toglierebbe dalla lista Cookidoo e la lista sommata, **senza modificare nulla**. La lista sommata nella prova a secco include solo le ricette già presenti nella lista Cookidoo. Se è tutto giusto, rilancialo senza spunta.
 
-## 3. Token per l'iPhone
-
-github.com → foto profilo → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** → **Generate new token**:
-- Repository access: **Only select repositories** → `bimby-sync`
-- Repository permissions: **Actions: Read and write** e **Contents: Read-only**
-- Scadenza: 1 anno (poi lo rigeneri)
-
-Copia il token: lo userai solo nel Comando Rapido. Non condividere il Comando Rapido con altri.
-
-## 4. Elenco in Promemoria
+## 3. Elenco in Promemoria
 
 Crea in Promemoria un elenco chiamato esattamente **Spesa** (puoi condividerlo con la famiglia). Lì metti a mano anche i prodotti extra: il Comando Rapido tocca **solo** le righe con la nota **Bimby**.
 
-## 5. Comando Rapido "Spesa Bimby"
+## 4. Comando Rapido "Spesa Bimby"
 
-Nell'app **Comandi** → **+**, aggiungi le azioni in quest'ordine. Le etichette possono variare un po' con la versione di iOS.
+Usa l'azione dell'app Bimby **Esportazione della lista della spesa**, che restituisce la lista di Cookidoo **già sommata** (es. `110 g di olio extravergine di oliva`). Non servono token né attese: GitHub tiene la lista Cookidoo allineata alla settimana ogni ora.
 
-**Ricalcola la lista**
-1. **Ottieni contenuti dell'URL**
-   - URL: `https://api.github.com/repos/enzoruggieroo/bimby-sync/actions/workflows/sync.yml/dispatches`
-   - Metodo: **POST** · Corpo richiesta: **JSON** con campo `ref` (testo) = `main`
-   - Intestazioni: `Authorization` = `Bearer IL-TUO-TOKEN` · `Accept` = `application/vnd.github+json`
-2. **Attendi** 75 secondi.
+Nell'app **Comandi** → **+**, aggiungi le azioni in quest'ordine (⏎ = vai a capo):
 
-**Scarica la lista**
-
-3. **Ottieni contenuti dell'URL**
-   - URL: `https://api.github.com/repos/enzoruggieroo/bimby-sync/contents/spesa.txt`
-   - Metodo: **GET**
-   - Intestazioni: `Authorization` = `Bearer IL-TUO-TOKEN` · `Accept` = `application/vnd.github.raw+json`
-4. **Testo**: premi Invio, inserisci la variabile *Contenuti dell'URL*, premi Invio. In pratica è la lista con una riga vuota prima e dopo. Rinomina la variabile in **Lista**.
-5. **Dividi testo**: *Contenuti dell'URL* per **Nuove righe**. Rinomina in **Righe**.
-
-**Togli le righe Bimby non più necessarie**
-
-6. **Trova promemoria** dove *Elenco* è **Spesa** e *Note* è **Bimby**. Non filtrare per completati: servono tutti.
+1. **Esportazione della lista della spesa** (app Bimby)
+2. **Testo**: ⏎, variabile *Esportazione della lista della spesa*, ⏎
+3. **Imposta variabile** → nome **Lista**, valore *Testo*
+4. **Dividi testo**: *Esportazione della lista della spesa* per **Nuove righe**
+5. **Imposta variabile** → nome **Righe**, valore *Testo diviso*
+6. **Trova promemoria** con filtri: *Elenco* è **Spesa** · *Note* contiene `Bimby`
 7. **Ripeti con ciascuno** (i promemoria trovati):
-   - **Testo**: Invio, *Ripeti elemento → Titolo*, Invio.
-   - **Se** *Lista* **contiene** il *Testo* appena creato → non fare nulla. **Altrimenti** → **Rimuovi promemoria** *Ripeti elemento*.
-
-**Aggiungi le righe nuove**
-
+   - **Testo**: ⏎, *Ripeti elemento → Titolo*, ⏎
+   - **Se** *Lista* **non contiene** *Testo* → **Rimuovi promemoria** *Ripeti elemento*
 8. **Ripeti con ciascuno** (*Righe*):
    - **Se** *Ripeti elemento* **ha qualsiasi valore**:
-     - **Trova promemoria** dove *Elenco* è **Spesa** e *Titolo* è *Ripeti elemento*.
-     - **Se** *Promemoria* **non ha alcun valore** → **Aggiungi nuovo promemoria** *Ripeti elemento* in **Spesa**, con **Note** = `Bimby`.
-9. **Mostra notifica**: "Spesa aggiornata 🛒".
-
-Chiamalo **Spesa Bimby**. Puoi avviarlo dalla schermata Home o con *"Ehi Siri, Spesa Bimby"*.
+     - **Trova promemoria**: *Elenco* è **Spesa** · *Titolo* è *Ripeti elemento*
+     - **Se** *Promemoria* **non ha alcun valore** → **Aggiungi nuovo promemoria** *Ripeti elemento* in **Spesa**, con **Note** = `Bimby`
+9. **Mostra notifica**: "Spesa aggiornata 🛒"
 
 ### Come si comporta
 - **Righe già spuntate** (comprate) che sono ancora uguali **restano spuntate** e non ricompaiono.
-- Se una quantità cambia (es. aggiungi una ricetta e la cipolla passa da `Cipolla – 3` a `Cipolla – 4`), la vecchia riga sparisce e compare quella nuova da comprare.
-- Le righe Bimby che non servono più (ricetta cucinata o tolta) vengono rimosse, anche se spuntate.
+- Se una quantità cambia (es. aggiungi una ricetta), la vecchia riga sparisce e compare quella nuova da comprare.
+- Le righe Bimby che non servono più vengono rimosse, anche se spuntate.
 - **I tuoi prodotti extra non vengono mai toccati.**
 - Per una spesa "da zero": in Promemoria → elenco Spesa → **⋯** → **Cancella completati**, poi premi Spesa Bimby.
-- Se la notifica arriva ma la lista non riflette l'ultima modifica alla settimana, GitHub era lento: ripremi il comando.
+
+### Opzionale: ricalcolo immediato
+Se hai appena cambiato la settimana e non vuoi aspettare il giro orario, metti **all'inizio** del comando:
+1. **Ottieni contenuti dell'URL** → `https://api.github.com/repos/enzoruggieroo/bimby-sync/actions/workflows/sync.yml/dispatches`, metodo **POST**, intestazioni `Authorization` = `Bearer IL-TUO-TOKEN` e `Accept` = `application/vnd.github+json`, corpo **JSON** con `ref` = `main`
+2. **Attendi** 75 secondi
+
+Il token (fine-grained, solo repository `bimby-sync`, permesso **Actions: Read and write**) si crea da github.com → Settings → Developer settings → Personal access tokens.
 
 ## Limiti
 - Si sommano solo prodotti con **stesso nome e stessa unità**: `Cipolla – 1` e `Cipolla – 50 g` restano su righe separate.
