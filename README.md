@@ -8,7 +8,7 @@ Trasforma le ricette della **Mia settimana** di Cookidoo in una **lista della sp
 3. Cookidoo **somma gli ingredienti**; lo script scrive anche una sua versione sommata in `spesa.txt` (una ricetta pianificata due volte conta due volte).
 4. Il Comando Rapido **"Spesa Bimby"** esporta la lista dall'app Bimby e la porta nell'elenco **Spesa** di Promemoria.
 
-Gira su GitHub Actions **ogni ora** (circa dalle 7 alle 23) e quando premi il pulsante sull'iPhone.
+Gira su GitHub Actions **ogni 30 minuti** (circa dalle 6 alle 23) e ogni volta che premi "Spesa Bimby" sull'iPhone.
 
 > Progetto personale, non ufficiale: usa la libreria community [`cookidoo-api`](https://github.com/miaucl/cookidoo-api), non affiliata a Vorwerk. Se Cookidoo cambia qualcosa può smettere di funzionare finché la libreria non viene aggiornata.
 
@@ -35,7 +35,7 @@ Crea in Promemoria un elenco chiamato esattamente **Spesa** (puoi condividerlo c
 
 ## 4. Comando Rapido "Spesa Bimby"
 
-Usa l'azione dell'app Bimby **Esportazione della lista della spesa**, che restituisce la lista di Cookidoo **già sommata** (es. `110 g di olio extravergine di oliva`). Non servono token né attese: GitHub tiene la lista Cookidoo allineata alla settimana ogni ora.
+Usa l'azione dell'app Bimby **Esportazione della lista della spesa**, che restituisce la lista di Cookidoo **già sommata** (es. `110 g di olio extravergine di oliva`). Non servono token né attese: GitHub tiene la lista Cookidoo allineata alla settimana ogni 30 minuti.
 
 Nell'app **Comandi** → **+**, aggiungi le azioni in quest'ordine (⏎ = vai a capo):
 
@@ -62,7 +62,7 @@ Nell'app **Comandi** → **+**, aggiungi le azioni in quest'ordine (⏎ = vai a 
 - Per una spesa "da zero": in Promemoria → elenco Spesa → **⋯** → **Cancella completati**, poi premi Spesa Bimby.
 
 ### Opzionale: ricalcolo immediato
-Se hai appena cambiato la settimana e non vuoi aspettare il giro orario, metti **all'inizio** del comando:
+Se hai appena cambiato la settimana e non vuoi aspettare il giro dei 30 minuti, metti **all'inizio** del comando:
 1. **Ottieni contenuti dell'URL** → `https://api.github.com/repos/enzoruggieroo/bimby-sync/actions/workflows/sync.yml/dispatches`, metodo **POST**, intestazioni `Authorization` = `Bearer IL-TUO-TOKEN` e `Accept` = `application/vnd.github+json`, corpo **JSON** con `ref` = `main`
 2. **Attendi** 75 secondi
 

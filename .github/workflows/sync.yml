@@ -2,9 +2,10 @@ name: Sincronizza spesa Bimby
 
 on:
   schedule:
-    # Ogni ora al minuto 17, dalle 5 alle 21 UTC:
-    # circa 6–22 con l'ora solare, 7–23 con l'ora legale.
-    - cron: "17 5-21 * * *"
+    # Ogni 30 minuti (:07 e :37), dalle 4 alle 21 UTC:
+    # circa 5–23 con l'ora solare, 6–24 con l'ora legale.
+    # Circa 1.100 minuti al mese, dentro i 2.000 gratuiti dei repository privati.
+    - cron: "7,37 4-21 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
