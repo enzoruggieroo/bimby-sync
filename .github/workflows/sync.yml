@@ -1,0 +1,43 @@
+name: Sincronizza spesa Bimby
+
+on:
+  schedule:
+    # Ogni ora al minuto 17, dalle 5 alle 21 UTC:
+    # circa 6–22 con l'ora solare, 7–23 con l'ora legale.
+    - cron: "17 5-21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Prova a secco: mostra cosa farebbe senza modificare nulla"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python sync.py
+        env:
+          COOKIDOO_EMAIL: ${{ secrets.COOKIDOO_EMAIL }}
+          COOKIDOO_PASSWORD: ${{ secrets.COOKIDOO_PASSWORD }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+      - name: Salva spesa.txt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A spesa.txt 2>/dev/null || true
+          git diff --cached --quiet || { git commit -m "Aggiorna lista della spesa" && git push; }
