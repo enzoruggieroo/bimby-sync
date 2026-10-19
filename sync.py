@@ -55,6 +55,12 @@ UNIT_PLURALS = {
 }
 UNIT_SINGULARS = {plural: singular for singular, plural in UNIT_PLURALS.items()}
 
+# Cookidoo in italiano scrive "80 g di carota": il nome arriva come "di carota".
+NAME_PREFIX = re.compile(r"^(?:di\s+|d['’]\s*)", re.IGNORECASE)
+
+# Ingredienti che non si comprano.
+SKIPPED_INGREDIENTS = {"acqua"}
+
 _LOGGER = logging.getLogger("bimby-sync")
 
 
@@ -135,8 +141,11 @@ def shopping_lines(recipes: Iterable[CookidooShoppingRecipe], planned: Counter[s
     for recipe in recipes:
         for _ in range(planned[recipe.id]):
             for ingredient in recipe.ingredients:
-                key = ingredient.name.strip().lower()
-                names.setdefault(key, ingredient.name.strip())
+                name = NAME_PREFIX.sub("", ingredient.name.strip())
+                key = name.lower()
+                if key in SKIPPED_INGREDIENTS:
+                    continue
+                names.setdefault(key, name)
                 amounts = totals.setdefault(key, {})
                 if (quantity := parse_quantity(ingredient.description)) is not None:
                     amount, unit = quantity

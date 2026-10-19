@@ -160,6 +160,17 @@ def test_same_name_different_units_stay_separate() -> None:
     ]
 
 
+def test_italian_prefix_is_removed_and_water_skipped() -> None:
+    recipes = [
+        shopping_recipe("r1", ("di olio extravergine di oliva", "80 g"), ("di acqua", "1000 g")),
+        shopping_recipe("r2", ("Olio extravergine di oliva", "30 g"), ("d'aglio", "1 spicchio")),
+    ]
+    assert shopping_lines(recipes, Counter({"r1": 1, "r2": 1})) == [
+        "Aglio – 1 spicchio",
+        "Olio extravergine di oliva – 110 g",
+    ]
+
+
 def test_format_amount() -> None:
     assert format_amount(1500, "ml") == "1,5 l"
     assert format_amount(0.5, "cucchiaino") == "0,5 cucchiaino"
