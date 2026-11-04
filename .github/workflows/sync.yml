@@ -20,10 +20,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: sync
-  cancel-in-progress: false
-
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -46,4 +42,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A spesa.txt 2>/dev/null || true
-          git diff --cached --quiet || { git commit -m "Aggiorna lista della spesa" && git push; }
+          git diff --cached --quiet && exit 0
+          git commit -m "Aggiorna lista della spesa"
+          # Più esecuzioni possono finire insieme: se un'altra ha già salvato, ci si allinea e si riprova.
+          git push || { git pull --rebase -X theirs origin main && git push; } || echo "spesa.txt non salvato: lo aggiornerà la prossima esecuzione"
