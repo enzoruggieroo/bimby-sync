@@ -5,11 +5,14 @@
 2. Somma gli ingredienti di tutte le ricette (una ricetta pianificata due volte
    conta due volte) e scrive il risultato in spesa.txt, una riga per prodotto.
    Il Comando Rapido sull'iPhone legge quel file e lo porta in Promemoria.
+3. Le righe spuntate in Promemoria (input "comprati") vengono segnate in Cookidoo
+   come "già in casa", così spariscono dalla lista esportata dall'app.
 """
 
 import asyncio
 from collections import Counter
 from collections.abc import Iterable
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 import logging
 import os
@@ -21,7 +24,7 @@ from zoneinfo import ZoneInfo
 import aiohttp
 from cookidoo_api import Cookidoo
 from cookidoo_api.helpers import get_localization_options
-from cookidoo_api.types import CookidooConfig, CookidooShoppingRecipe
+from cookidoo_api.types import CookidooConfig, CookidooIngredientItem, CookidooShoppingRecipe
 
 TIMEZONE = ZoneInfo("Europe/Rome")
 OUTPUT_FILE = Path(__file__).with_name("spesa.txt")
@@ -161,10 +164,46 @@ def shopping_lines(recipes: Iterable[CookidooShoppingRecipe], planned: Counter[s
     return lines
 
 
-async def run(cookidoo: Cookidoo, today: date, dry_run: bool) -> list[str]:
+def ingredient_core(name: str) -> str:
+    """Nome confrontabile: senza "di", in minuscolo, senza la preparazione dopo la virgola."""
+    name = NAME_PREFIX.sub("", name.strip()).lower()
+    return " ".join(name.split(",")[0].split())
+
+
+def matches_line(line: str, item: CookidooIngredientItem) -> bool:
+    """La riga esportata dall'app ("80 g di carota") parla di questo ingrediente?"""
+    core = ingredient_core(item.name)
+    if not core:
+        return False
+    text = " ".join(line.strip().lower().split())
+    return re.search(rf"(?:^|[\s'’]){re.escape(core)}(?:$|,)", text) is not None
+
+
+async def mark_bought(cookidoo: Cookidoo, bought: list[str], dry_run: bool) -> list[CookidooIngredientItem]:
+    """Segna come "già in casa" gli ingredienti delle righe spuntate in Promemoria."""
+    items = [item for item in await cookidoo.get_ingredient_items() if not item.is_owned]
+    to_mark: dict[str, CookidooIngredientItem] = {}
+    for line in bought:
+        found = [item for item in items if matches_line(line, item)]
+        if found:
+            _LOGGER.info("Comprato: %s → %s", line, ", ".join(sorted({i.name for i in found})))
+        else:
+            _LOGGER.info("Comprato ma non trovato in Cookidoo: %s", line)
+        to_mark.update((item.id, item) for item in found)
+
+    if to_mark and not dry_run:
+        await cookidoo.edit_ingredient_items_ownership(
+            [replace(item, is_owned=True) for item in to_mark.values()]
+        )
+    return list(to_mark.values())
+
+
+async def run(cookidoo: Cookidoo, today: date, dry_run: bool, bought: list[str] = ()) -> list[str]:
     planned = await planned_recipes(cookidoo, today)
     _LOGGER.info("Ricette pianificate da %s in poi: %s", today, dict(planned) or "nessuna")
     await sync_shopping_list(cookidoo, planned, dry_run)
+    if bought:
+        await mark_bought(cookidoo, list(bought), dry_run)
 
     lines = shopping_lines(await cookidoo.get_shopping_list_recipes(), planned)
     _LOGGER.info("Lista della spesa (%d prodotti):\n%s", len(lines), "\n".join(lines))
@@ -182,6 +221,8 @@ async def main() -> None:
     if not email or not password:
         sys.exit("Mancano COOKIDOO_EMAIL e/o COOKIDOO_PASSWORD nei Secrets del repository.")
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
+    # Righe spuntate in Promemoria, una per riga, mandate dal Comando Rapido "Spesa".
+    bought = [line.strip() for line in os.environ.get("COMPRATI", "").splitlines() if line.strip()]
 
     localization = (await get_localization_options(country="it", language="it-IT"))[0]
     # CookieJar(unsafe=True) serve al login di Cookidoo (redirect tra domini).
@@ -191,7 +232,7 @@ async def main() -> None:
             cfg=CookidooConfig(email=email, password=password, localization=localization),
         )
         await cookidoo.login()
-        await run(cookidoo, datetime.now(TIMEZONE).date(), dry_run)
+        await run(cookidoo, datetime.now(TIMEZONE).date(), dry_run, bought)
 
 
 if __name__ == "__main__":

@@ -9,11 +9,12 @@ from cookidoo_api.types import (
     CookidooCalendarDay,
     CookidooCalendarDayRecipe,
     CookidooIngredient,
+    CookidooIngredientItem,
     CookidooShoppingRecipe,
 )
 
 import sync
-from sync import format_amount, parse_quantity, shopping_lines
+from sync import format_amount, matches_line, parse_quantity, shopping_lines
 
 CUSTOM_ID = "01K2CVHD1DXG1PVETNVV3JPKWW"
 TODAY = date(2026, 10, 20)  # martedì
@@ -175,3 +176,59 @@ def test_format_amount() -> None:
     assert format_amount(1500, "ml") == "1,5 l"
     assert format_amount(0.5, "cucchiaino") == "0,5 cucchiaino"
     assert format_amount(3, "spicchio") == "3 spicchi"
+
+
+def item(item_id: str, name: str, description: str = "", is_owned: bool = False) -> CookidooIngredientItem:
+    return CookidooIngredientItem(id=item_id, name=name, is_owned=is_owned, description=description)
+
+
+PANTRY = [
+    item("1", "di olio extravergine di oliva", "80 g"),
+    item("2", "Olio extravergine di oliva", "30 g"),
+    item("3", "pepe", "1 pizzico"),
+    item("4", "pepe nero macinato", "2 pizzichi"),
+    item("5", "aglio", "2 spicchi"),
+    item("6", "basilico fresco, le foglie lavate ed asciugate", "1 mazzetto"),
+    item("7", "sale", "1 cucchiaino"),
+    item("8", "carota", "80 g", is_owned=True),
+]
+
+
+class FakePantry:
+    def __init__(self, items: list[CookidooIngredientItem]) -> None:
+        self.items = items
+        self.edited: list[CookidooIngredientItem] = []
+
+    async def get_ingredient_items(self) -> list[CookidooIngredientItem]:
+        return self.items
+
+    async def edit_ingredient_items_ownership(self, items: list[CookidooIngredientItem]) -> None:
+        self.edited += items
+
+
+def test_matches_line_uses_whole_words_at_end() -> None:
+    assert matches_line("110 g di olio extravergine di oliva", PANTRY[0])
+    assert matches_line("110 g di olio extravergine di oliva", PANTRY[1])
+    assert matches_line("2 pizzichi di pepe", PANTRY[2])
+    assert not matches_line("3 pizzichi di pepe nero macinato", PANTRY[2])
+    assert matches_line("3 pizzichi di pepe nero macinato", PANTRY[3])
+    assert matches_line("2 spicchi d'aglio", PANTRY[4])
+    assert matches_line("1 mazzetto di basilico fresco", PANTRY[5])
+    assert matches_line("1 mazzetto di basilico fresco, le foglie lavate ed asciugate", PANTRY[5])
+    assert not matches_line("2 cucchiaini di sale grosso", PANTRY[6])
+
+
+def test_mark_bought_sets_owned_on_every_matching_item() -> None:
+    pantry = FakePantry(PANTRY)
+    lines = ["110 g di olio extravergine di oliva", "2 pizzichi di pepe", "80 g di carota", "1 kg di farina"]
+    marked = asyncio.run(sync.mark_bought(pantry, lines, dry_run=False))
+
+    assert sorted(i.id for i in marked) == ["1", "2", "3"]  # la carota è già in casa, la farina non c'è
+    assert all(i.is_owned for i in pantry.edited)
+    assert sorted(i.id for i in pantry.edited) == ["1", "2", "3"]
+
+
+def test_mark_bought_dry_run_changes_nothing() -> None:
+    pantry = FakePantry(PANTRY)
+    asyncio.run(sync.mark_bought(pantry, ["2 pizzichi di pepe"], dry_run=True))
+    assert pantry.edited == []

@@ -12,6 +12,10 @@ on:
         description: "Prova a secco: mostra cosa farebbe senza modificare nulla"
         type: boolean
         default: false
+      comprati:
+        description: "Righe spuntate in Promemoria, una per riga: vengono segnate in Cookidoo come già in casa"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -36,6 +40,7 @@ jobs:
           COOKIDOO_EMAIL: ${{ secrets.COOKIDOO_EMAIL }}
           COOKIDOO_PASSWORD: ${{ secrets.COOKIDOO_PASSWORD }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          COMPRATI: ${{ inputs.comprati }}
       - name: Salva spesa.txt
         run: |
           git config user.name "github-actions[bot]"
