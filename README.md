@@ -6,9 +6,9 @@ Trasforma le ricette della **Mia settimana** di Cookidoo in una **lista della sp
 1. Prende **tutte le ricette pianificate da oggi in avanti**, anche nelle settimane successive.
 2. Le mette nella lista della spesa di Cookidoo (non devi più premere "Aggiungi alla lista della spesa") e toglie quelle non più pianificate.
 3. Cookidoo **somma gli ingredienti**; lo script scrive anche una sua versione sommata in `spesa.txt` (una ricetta pianificata due volte conta due volte).
-4. Il Comando Rapido **"Spesa Bimby"** esporta la lista dall'app Bimby e la porta nell'elenco **Spesa** di Promemoria.
+4. Il Comando Rapido **"Spesa"** esporta la lista dall'app Bimby e la porta nell'elenco **Lista spesa** di Promemoria; i prodotti spuntati lì vengono segnati come già in casa in Cookidoo.
 
-Gira su GitHub Actions **ogni 30 minuti** (circa dalle 6 alle 23) e ogni volta che premi "Spesa Bimby" sull'iPhone.
+Gira quando premi "Spesa", quando esci dall'app Bimby e, come riserva, con i controlli programmati di GitHub (che GitHub esegue solo alcune volte al giorno).
 
 > Progetto personale, non ufficiale: usa la libreria community [`cookidoo-api`](https://github.com/miaucl/cookidoo-api), non affiliata a Vorwerk. Se Cookidoo cambia qualcosa può smettere di funzionare finché la libreria non viene aggiornata.
 
@@ -31,42 +31,35 @@ Apri l'esecuzione: il log mostra le ricette pianificate, cosa aggiungerebbe o to
 
 ## 3. Elenco in Promemoria
 
-Crea in Promemoria un elenco chiamato esattamente **Spesa** (puoi condividerlo con la famiglia). Lì metti a mano anche i prodotti extra: il Comando Rapido tocca **solo** le righe con la nota **Bimby**.
+Crea in Promemoria un elenco chiamato esattamente **Lista spesa** (puoi condividerlo con la famiglia). Lì metti a mano anche i prodotti extra: il Comando Rapido tocca **solo** le righe con la nota **Bimby**.
 
-## 4. Comando Rapido "Spesa Bimby"
+## 4. Comando Rapido "Spesa"
 
-Usa l'azione dell'app Bimby **Esportazione della lista della spesa**, che restituisce la lista di Cookidoo **già sommata** (es. `110 g di olio extravergine di oliva`). Non servono token né attese: GitHub tiene la lista Cookidoo allineata alla settimana ogni 30 minuti.
+Crea un token fine-grained (github.com → Settings → Developer settings → Personal access tokens) con accesso solo a `bimby-sync` e permesso **Actions: Read and write**.
 
-Nell'app **Comandi** → **+**, aggiungi le azioni in quest'ordine (⏎ = vai a capo):
+Azioni, in quest'ordine:
 
-1. **Esportazione della lista della spesa** (app Bimby)
-2. **Testo**: ⏎, variabile *Esportazione della lista della spesa*, ⏎
-3. **Imposta variabile** → nome **Lista**, valore *Testo*
-4. **Dividi testo**: *Esportazione della lista della spesa* per **Nuove righe**
-5. **Imposta variabile** → nome **Righe**, valore *Testo diviso*
-6. **Trova promemoria** con filtri: *Elenco* è **Spesa** · *Note* contiene `Bimby`
-7. **Ripeti con ciascuno** (i promemoria trovati):
-   - **Testo**: ⏎, *Ripeti elemento → Titolo*, ⏎
-   - **Se** *Lista* **non contiene** *Testo* → **Rimuovi promemoria** *Ripeti elemento*
-8. **Ripeti con ciascuno** (*Righe*):
-   - **Se** *Ripeti elemento* **ha qualsiasi valore**:
-     - **Trova promemoria**: *Elenco* è **Spesa** · *Titolo* è *Ripeti elemento*
-     - **Se** *Promemoria* **non ha alcun valore** → **Aggiungi nuovo promemoria** *Ripeti elemento* in **Spesa**, con **Note** = `Bimby`
-9. **Mostra notifica**: "Spesa aggiornata 🛒"
+1. **Trova promemoria**: *Elenco* è **Lista spesa** · *Note* contiene `Bimby` · *Completato* è **Sì**
+2. **Combina testo**: *Promemoria* con **Nuove righe**
+3. **Ottieni contenuti dell'URL** → `https://api.github.com/repos/enzoruggieroo/bimby-sync/actions/workflows/sync.yml/dispatches`
+   - Metodo **POST** · intestazioni `Authorization` = `Bearer IL-TUO-TOKEN`, `Accept` = `application/vnd.github+json`
+   - Corpo **JSON**: `ref` = `main` · `inputs` (dizionario) → `comprati` = *Testo combinato*
+4. **Attendi** 30 secondi
+5. **Esportazione della lista della spesa** (app Bimby): la lista già sommata da Cookidoo
+6. **Corrispondenza testo** `.+` su *Esportazione della lista della spesa*
+7. **Trova promemoria**: *Elenco* è **Lista spesa** · *Note* contiene `Bimby`
+8. **Rimuovi promemoria** *Promemoria* (iOS chiede sempre conferma)
+9. **Ripeti con ciascun elemento** in *Risultati* → **Aggiungi nuovo promemoria** *Elemento ripetizione* in **Lista spesa**, Note `Bimby`
+10. **Mostra notifica**
 
 ### Come si comporta
-- **Righe già spuntate** (comprate) che sono ancora uguali **restano spuntate** e non ricompaiono.
-- Se una quantità cambia (es. aggiungi una ricetta), la vecchia riga sparisce e compare quella nuova da comprare.
-- Le righe Bimby che non servono più vengono rimosse, anche se spuntate.
-- **I tuoi prodotti extra non vengono mai toccati.**
-- Per una spesa "da zero": in Promemoria → elenco Spesa → **⋯** → **Cancella completati**, poi premi Spesa Bimby.
+- I prodotti **spuntati** in Promemoria vengono segnati in Cookidoo come **già in casa** e non tornano più.
+- Le altre righe Bimby vengono riscritte da capo con la lista aggiornata.
+- I prodotti aggiunti a mano (senza nota `Bimby`) **non vengono mai toccati**.
 
-### Opzionale: ricalcolo immediato
-Se hai appena cambiato la settimana e non vuoi aspettare il giro dei 30 minuti, metti **all'inizio** del comando:
-1. **Ottieni contenuti dell'URL** → `https://api.github.com/repos/enzoruggieroo/bimby-sync/actions/workflows/sync.yml/dispatches`, metodo **POST**, intestazioni `Authorization` = `Bearer IL-TUO-TOKEN` e `Accept` = `application/vnd.github+json`, corpo **JSON** con `ref` = `main`
-2. **Attendi** 75 secondi
+## 5. Automazione "quando chiudo l'app Bimby"
 
-Il token (fine-grained, solo repository `bimby-sync`, permesso **Actions: Read and write**) si crea da github.com → Settings → Developer settings → Personal access tokens.
+Comando **Aggiorna Bimby** con la sola azione 3 (senza `inputs`). Automazione: **App → Bimby → È chiusa → Esegui immediatamente → Esegui comando rapido "Aggiorna Bimby"**. Ogni volta che esci dall'app, le ricette nuove della settimana entrano nella lista Cookidoo.
 
 ## Limiti
 - Si sommano solo prodotti con **stesso nome e stessa unità**: `Cipolla – 1` e `Cipolla – 50 g` restano su righe separate.
