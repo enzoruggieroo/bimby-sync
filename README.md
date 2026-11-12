@@ -5,10 +5,12 @@ Trasforma le ricette della **Mia settimana** di Cookidoo in una **lista della sp
 **Cosa fa:**
 1. Prende **tutte le ricette pianificate da oggi in avanti**, anche nelle settimane successive.
 2. Le mette nella lista della spesa di Cookidoo (non devi più premere "Aggiungi alla lista della spesa") e toglie quelle non più pianificate.
-3. Cookidoo **somma gli ingredienti**; lo script scrive anche una sua versione sommata in `spesa.txt` (una ricetta pianificata due volte conta due volte).
+3. Le quantità le **somma Cookidoo** nella sua lista della spesa.
 4. Il Comando Rapido **"Spesa"** esporta la lista dall'app Bimby e la porta nell'elenco **Lista spesa** di Promemoria; i prodotti spuntati lì vengono segnati come già in casa in Cookidoo.
 
 Gira quando premi "Spesa", quando esci dall'app Bimby e, come riserva, con i controlli programmati di GitHub (che GitHub esegue solo alcune volte al giorno).
+
+> Il repository è **pubblico** (su GitHub Actions i repository pubblici non consumano minuti a pagamento). Email e password di Cookidoo e il token dell'iPhone **non sono nel codice**: stanno nei Secrets e nel Comando Rapido.
 
 > Progetto personale, non ufficiale: usa la libreria community [`cookidoo-api`](https://github.com/miaucl/cookidoo-api), non affiliata a Vorwerk. Se Cookidoo cambia qualcosa può smettere di funzionare finché la libreria non viene aggiornata.
 
@@ -27,7 +29,7 @@ I Secrets sono cifrati: non compaiono nel codice né nei log.
 
 **Actions** → **Sincronizza spesa Bimby** → **Run workflow** → spunta **Prova a secco** → **Run workflow**.
 
-Apri l'esecuzione: il log mostra le ricette pianificate, cosa aggiungerebbe o toglierebbe dalla lista Cookidoo e la lista sommata, **senza modificare nulla**. La lista sommata nella prova a secco include solo le ricette già presenti nella lista Cookidoo. Se è tutto giusto, rilancialo senza spunta.
+Apri l'esecuzione: il log mostra **quante** ricette aggiungerebbe o toglierebbe dalla lista Cookidoo, **senza modificare nulla**. Il repository è pubblico, quindi il log non riporta mai nomi di ricette o prodotti. Se è tutto giusto, rilancialo senza spunta.
 
 ## 3. Elenco in Promemoria
 
@@ -62,9 +64,9 @@ Azioni, in quest'ordine:
 Comando **Aggiorna Bimby** con la sola azione 3 (senza `inputs`). Automazione: **App → Bimby → È chiusa → Esegui immediatamente → Esegui comando rapido "Aggiorna Bimby"**. Ogni volta che esci dall'app, le ricette nuove della settimana entrano nella lista Cookidoo.
 
 ## Limiti
-- Si sommano solo prodotti con **stesso nome e stessa unità**: `Cipolla – 1` e `Cipolla – 50 g` restano su righe separate.
-- Degli intervalli (`40 - 60 g`) si prende il valore più alto.
-- Lo script non sa cosa hai già in casa: se hai già comprato per alcuni giorni e rigeneri, quei prodotti compaiono di nuovo solo se la loro riga è cambiata.
+- Le quantità le somma Cookidoo: righe con unità diverse (es. `4 cucchiai` e `40 g` di parmigiano) restano separate.
+- Spuntare in Promemoria una di quelle righe segna come comprato **tutto** quel prodotto in Cookidoo.
+- Una ricetta pianificata in due giorni Cookidoo la conta una volta sola.
 
 ## Sviluppo
 ```bash
